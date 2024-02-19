@@ -1,4 +1,5 @@
 # Ultralytics YOLO 🚀, GPL-3.0 license
+import math
 
 import hydra
 import torch
@@ -31,6 +32,29 @@ object_counter = {}
 object_counter1 = {}
 
 line = [(100, 500), (1050, 500)]
+
+
+def estimate_speed(Location1, Location2, frame_rate=8, pixel_per_meter=8):
+    """
+    Estimate speed based on the distance traveled between Location1 and Location2.
+    Adjustments are made for frame rate and pixel per meter values.
+    """
+    # Calculate the Euclidean distance between Location1 and Location2
+    d_pixel = math.sqrt((Location2[0] - Location1[0]) ** 2 + (Location2[1] - Location1[1]) ** 2)
+
+    # Convert distance from pixels to meters
+    d_meters = d_pixel / pixel_per_meter
+
+    # Convert time from frames to seconds
+    time_seconds = 1 / frame_rate
+
+    # Calculate speed in meters per second
+    speed_mps = d_meters / time_seconds
+
+    # Convert speed to kilometers per hour
+    speed_kph = speed_mps * 3.6
+
+    return int(speed_kph)
 
 
 def init_tracker():
@@ -79,7 +103,7 @@ def compute_color_for_labels(label):
     Simple function that adds fixed color depending on the class
     """
     if label == 0:  # person
-        color = (85, 45, 255)
+        color = (204, 127, 59)
     elif label == 2:  # Car
         color = (222, 82, 175)
     elif label == 3:  # Motobike
@@ -212,6 +236,12 @@ def draw_boxes(img, bbox, names, object_id, identities=None, offset=(0, 0)):
                         object_counter1[obj_name] = 1
                     else:
                         object_counter1[obj_name] += 1
+
+        # Calculate speed
+        if len(data_deque[id]) >= 2:
+            speed = estimate_speed(data_deque[id][0], data_deque[id][1])
+            label += f', Speed: {speed} km/h'
+
         UI_box(box, img, label=label, color=color, line_thickness=2)
         # draw trail
         for i in range(1, len(data_deque[id])):
@@ -226,19 +256,19 @@ def draw_boxes(img, bbox, names, object_id, identities=None, offset=(0, 0)):
         # 4. Display Count in top right corner
         for idx, (key, value) in enumerate(object_counter1.items()):
             cnt_str = str(key) + ":" + str(value)
-            cv2.line(img, (width - 500, 25), (width, 25), [85, 45, 255], 40)
+            cv2.line(img, (width - 500, 25), (width, 25), [204, 127, 59], 40)
             cv2.putText(img, f'Number of Vehicles Entering', (width - 500, 35), 0, 1, [225, 255, 255], thickness=2,
                         lineType=cv2.LINE_AA)
-            cv2.line(img, (width - 150, 65 + (idx * 40)), (width, 65 + (idx * 40)), [85, 45, 255], 30)
+            cv2.line(img, (width - 150, 65 + (idx * 40)), (width, 65 + (idx * 40)), [204, 127, 59], 30)
             cv2.putText(img, cnt_str, (width - 150, 75 + (idx * 40)), 0, 1, [255, 255, 255], thickness=2,
                         lineType=cv2.LINE_AA)
 
         for idx, (key, value) in enumerate(object_counter.items()):
             cnt_str1 = str(key) + ":" + str(value)
-            cv2.line(img, (20, 25), (500, 25), [85, 45, 255], 40)
+            cv2.line(img, (20, 25), (500, 25), [204, 127, 59], 40)
             cv2.putText(img, f'Numbers of Vehicles Leaving', (11, 35), 0, 1, [225, 255, 255], thickness=2,
                         lineType=cv2.LINE_AA)
-            cv2.line(img, (20, 65 + (idx * 40)), (127, 65 + (idx * 40)), [85, 45, 255], 30)
+            cv2.line(img, (20, 65 + (idx * 40)), (127, 65 + (idx * 40)), [204, 127, 59], 30)
             cv2.putText(img, cnt_str1, (11, 75 + (idx * 40)), 0, 1, [225, 255, 255], thickness=2, lineType=cv2.LINE_AA)
 
     return img
