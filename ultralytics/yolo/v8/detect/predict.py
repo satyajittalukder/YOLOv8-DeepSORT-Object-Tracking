@@ -240,38 +240,71 @@ def draw_boxes(img, bbox, names, object_id, identities=None, offset=(0, 0)):
         # Calculate speed
         if len(data_deque[id]) >= 2:
             speed = estimate_speed(data_deque[id][0], data_deque[id][1])
-            label += f', Speed: {speed} km/h'
+            label += f',{speed} km/h'
 
         UI_box(box, img, label=label, color=color, line_thickness=2)
-        # draw trail
-        for i in range(1, len(data_deque[id])):
-            # check if on buffer value is none
-            if data_deque[id][i - 1] is None or data_deque[id][i] is None:
-                continue
-            # generate dynamic thickness of trails
-            thickness = int(np.sqrt(64 / float(i + i)) * 1.5)
-            # draw trails
-            cv2.line(img, data_deque[id][i - 1], data_deque[id][i], color, thickness)
+        
+    BACKGROUND_COLOR = (40, 40, 40)  # Dark gray background
+    HEADER_COLOR = (0, 170, 255)  # Orange header
+    TEXT_COLOR_HEADER = (255, 255, 255)  # White text for header
+    TEXT_COLOR_COUNT = (220, 220, 220)  # Light gray text for counts
+    FONT = cv2.FONT_HERSHEY_SIMPLEX
+    FONT_SCALE_HEADER = 0.7
+    FONT_SCALE_COUNT = 0.6
+    
+    def draw_rounded_rectangle(img, pt1, pt2, color, thickness, r, d):
+        x1, y1 = pt1
+        x2, y2 = pt2
+        
+        # Draw filled rectangle
+        cv2.rectangle(img, (x1+r, y1), (x2-r, y2), color, -1)
+        cv2.rectangle(img, (x1, y1+r), (x2, y2-r), color, -1)
+        
+        # Draw four corners
+        cv2.circle(img, (x1+r, y1+r), r, color, -1)
+        cv2.circle(img, (x2-r, y1+r), r, color, -1)
+        cv2.circle(img, (x1+r, y2-r), r, color, -1)
+        cv2.circle(img, (x2-r, y2-r), r, color, -1)
 
-        # 4. Display Count in top right corner
-        for idx, (key, value) in enumerate(object_counter1.items()):
-            cnt_str = str(key) + ":" + str(value)
-            cv2.line(img, (width - 500, 25), (width, 25), [204, 127, 59], 40)
-            cv2.putText(img, f'Number of Vehicles Entering', (width - 500, 35), 0, 1, [225, 255, 255], thickness=2,
-                        lineType=cv2.LINE_AA)
-            cv2.line(img, (width - 150, 65 + (idx * 40)), (width, 65 + (idx * 40)), [204, 127, 59], 30)
-            cv2.putText(img, cnt_str, (width - 150, 75 + (idx * 40)), 0, 1, [255, 255, 255], thickness=2,
-                        lineType=cv2.LINE_AA)
+    def draw_header(x_start, y_start, width, height, text):
+        # Draw rounded rectangle background
+        draw_rounded_rectangle(img, (x_start, y_start), (x_start + width, y_start + height), HEADER_COLOR, -1, 10, 10)
+        
+        # Draw text
+        text_size = cv2.getTextSize(text, FONT, FONT_SCALE_HEADER, 2)[0]
+        text_x = x_start + (width - text_size[0]) // 2
+        text_y = y_start + (height + text_size[1]) // 2
+        cv2.putText(img, text, (text_x, text_y), FONT, FONT_SCALE_HEADER, TEXT_COLOR_HEADER, 2, cv2.LINE_AA)
+    
+    def draw_counts(counter, x_start, y_start, width):
+        for idx, (key, value) in enumerate(counter.items()):
+            y = y_start + idx * 40
+            cnt_str = f'{key}: {value}'
+            
+            # Background
+            cv2.rectangle(img, (x_start, y), (x_start + width, y + 35), BACKGROUND_COLOR, -1)
+            
+            # Count text
+            text_size = cv2.getTextSize(cnt_str, FONT, FONT_SCALE_COUNT, 1)[0]
+            text_x = x_start + (width - text_size[0]) // 2
+            cv2.putText(img, cnt_str, (text_x, y + 25), FONT, FONT_SCALE_COUNT, TEXT_COLOR_COUNT, 1, cv2.LINE_AA)
+    
+    # Constants for layout
+    HEADER_WIDTH = 250
+    HEADER_HEIGHT = 40
+    COUNT_WIDTH = 200
+    MARGIN = 20
 
-        for idx, (key, value) in enumerate(object_counter.items()):
-            cnt_str1 = str(key) + ":" + str(value)
-            cv2.line(img, (20, 25), (500, 25), [204, 127, 59], 40)
-            cv2.putText(img, f'Numbers of Vehicles Leaving', (11, 35), 0, 1, [225, 255, 255], thickness=2,
-                        lineType=cv2.LINE_AA)
-            cv2.line(img, (20, 65 + (idx * 40)), (127, 65 + (idx * 40)), [204, 127, 59], 30)
-            cv2.putText(img, cnt_str1, (11, 75 + (idx * 40)), 0, 1, [225, 255, 255], thickness=2, lineType=cv2.LINE_AA)
+    # Vehicles Entering
+    draw_header(width - HEADER_WIDTH - MARGIN, MARGIN, HEADER_WIDTH, HEADER_HEIGHT, 'Vehicles Entering')
+    draw_counts(object_counter1, width - COUNT_WIDTH - MARGIN, MARGIN + HEADER_HEIGHT + 10, COUNT_WIDTH)
+    
+    # Vehicles Leaving
+    draw_header(MARGIN, MARGIN, HEADER_WIDTH, HEADER_HEIGHT, 'Vehicles Leaving')
+    draw_counts(object_counter, MARGIN, MARGIN + HEADER_HEIGHT + 10, COUNT_WIDTH)
 
-    return img
+
+    # return img
 
 
 class DetectionPredictor(BasePredictor):
